@@ -5,10 +5,7 @@
 #include <stdlib.h>
 #include "fireup.h"
 
-void remove_box(struct box b);
-void print_box(struct box b);
-
-int main() {
+int main(void) {
   struct timespec ts = {0, 10000000L};
   int c;
 
@@ -93,27 +90,32 @@ void handle_input(int c) {
 }
 
 void fire_projectile(void) {
-  int projectile_at_base = 0;
-
   for (int i = 0; i < screen_rows; i++) {
-    //move(projectiles[i].y, 0);
-    mvprintw(projectiles[i].y, projectiles[i].x, " ");
-    //clrtoeol();
-
-    /*if (projectiles[i].y-- < 0 || projectile_hit(projectiles[i]) &&*/
-        /*!projectile_at_base) {*/
-    if (projectile_hit(projectiles[i]) ||
-        (projectiles[i].y-- < 0 &&
-        !projectile_at_base)) {
+    if (projectiles[i].y < 0) {
       projectiles[i].y = screen_rows - 2;
       projectiles[i].x = player_pos + 1;
-      projectile_at_base = 1;
+      attron(COLOR_PAIR(1));
+      mvprintw(projectiles[i].y, projectiles[i].x, " ");
+      attroff(COLOR_PAIR(1));
+      return;
+    }
+  }
+}
+
+void move_projectiles_up(void) {
+  for (int i = 0; i < screen_rows; i++) {
+    mvprintw(projectiles[i].y, projectiles[i].x, " ");
+
+    if (projectile_hit(projectiles[i]) || projectiles[i].y-- < 0) {
+      projectiles[i].y = -1;
+      projectiles[i].x = -1;
     }
 
     attron(COLOR_PAIR(1));
     mvprintw(projectiles[i].y, projectiles[i].x, " ");
     attroff(COLOR_PAIR(1));
   }
+
 }
 
 int projectile_hit(struct point p) {
@@ -133,8 +135,17 @@ int projectile_hit(struct point p) {
   return 0;
 }
 
-void update() {
-  fire_projectile();
+void update(void) {
+  if (box_tick++ == 10) {
+    move_boxes_down();
+    box_tick = 0;
+  }
+  if (proj_tick++ == 15) {
+    fire_projectile();
+    proj_tick = 0;
+  }
+
+  move_projectiles_up();
 
   if (mouse_pos < player_pos && mouse_pos != -1) {
     move_player(LEFT);
@@ -165,14 +176,14 @@ void print_game(void) {
   attroff(COLOR_PAIR(2));
 }
 
-void print_gameover() {
+void print_gameover(void) {
   mvprintw(screen_rows / 2, screen_cols / 2 - 5, "Game Over!");
   mvprintw(screen_rows / 2 + 1, screen_cols / 2 - 15,
     "Press 'n' to start a new game!");
 }
 
 
-void new_game() {
+void new_game(void) {
   clear();
 
   player_pos = screen_cols / 2;
@@ -196,19 +207,37 @@ void new_game() {
 
   boxes[0].y = 21;
   boxes[0].x = 1;
-  boxes[0].health = rand() % (50 - 1) + 1;
+  boxes[0].health = rand() % (10 - 1) + 1;
 
   boxes[1].y = 21;
-  boxes[1].x = 11;
-  boxes[1].health = 200;
+  boxes[1].x = 13;
+  boxes[1].health = 5;
  
   boxes[2].y = 21;
-  boxes[2].x = 21;
-  boxes[2].health = 500;
+  boxes[2].x = 25;
+  boxes[2].health = 5;
 
   boxes[3].y = 21;
-  boxes[3].x = 31;
-  boxes[3].health = 1120;
+  boxes[3].x = 37;
+  boxes[3].health = 5;
+
+  boxes[4].y = 11;
+  boxes[4].x = 25;
+  boxes[4].health = 5;
+
+  boxes[5].y = 11;
+  boxes[5].x = 37;
+  boxes[5].health = 5;
+ 
+  boxes[6].y = 11;
+  boxes[6].x = 49;
+  boxes[6].health = 5;
+
+  boxes[7].y = 11;
+  boxes[7].x = 61;
+  boxes[7].health = 5;
+
+
 
   for (int i = 0; i < 20; i++) {
     if (boxes[i].health > 0)
@@ -218,6 +247,16 @@ void new_game() {
   score = 0;
   gameover = 0;
   paused = 0;
+}
+
+void move_boxes_down(void) {
+  for (int i = 0; i < 20; i++) {
+    if (boxes[i].health > 0) {
+      remove_box(boxes[i]);
+      boxes[i].y++;
+      print_box(boxes[i]);
+    }
+  }
 }
 
 void move_player(int direction) {

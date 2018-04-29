@@ -5,6 +5,8 @@
 ```
 make
 
+TERM=xterm-1003
+
 ./bin/fireup
 ```
 
