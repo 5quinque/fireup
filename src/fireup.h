@@ -10,7 +10,7 @@ void move_player(int direction);
 void fire_projectile(void);
 
 int player_pos;
-int mouse_pos;
+int mouse_pos = -1;
 int fire_rate = 1;
 int fire_power = 1;
 int paused = 0;

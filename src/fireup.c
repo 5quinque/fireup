@@ -96,13 +96,15 @@ void fire_projectile(void) {
   int projectile_at_base = 0;
 
   for (int i = 0; i < screen_rows; i++) {
-    move(projectiles[i].y, 0);
-    clrtoeol();
+    //move(projectiles[i].y, 0);
+    mvprintw(projectiles[i].y, projectiles[i].x, " ");
+    //clrtoeol();
 
     /*if (projectiles[i].y-- < 0 || projectile_hit(projectiles[i]) &&*/
         /*!projectile_at_base) {*/
-    if (projectiles[i].y-- < 0 &&
-        !projectile_at_base) {
+    if (projectile_hit(projectiles[i]) ||
+        (projectiles[i].y-- < 0 &&
+        !projectile_at_base)) {
       projectiles[i].y = screen_rows - 2;
       projectiles[i].x = player_pos + 1;
       projectile_at_base = 1;
@@ -116,14 +118,14 @@ void fire_projectile(void) {
 
 int projectile_hit(struct point p) {
   for (int i = 0; i < 20; i++) {
-    if (!boxes[i].health)
-      return 0;
-    if (p.y > boxes[i].y - 2 && p.y < boxes[i].y &&
+    if (p.y > boxes[i].y && p.y < boxes[i].y + 2 &&
         p.x > boxes[i].x - 1 && p.x < boxes[i].x + 10) {
-      boxes[i].health--;
-      if (boxes[i].health <= 0) {
+      if (boxes[i].health-- <= 0) {
         remove_box(boxes[i]);
+        return 0;
       }
+      score++;
+      print_box(boxes[i]);
       return 1;
     }
   }
@@ -134,12 +136,11 @@ int projectile_hit(struct point p) {
 void update() {
   fire_projectile();
 
-  if (mouse_pos < player_pos) {
+  if (mouse_pos < player_pos && mouse_pos != -1) {
     move_player(LEFT);
   } else if (mouse_pos > player_pos) {
     move_player(RIGHT);
   }
-
 }
 
 void print_box(struct box b) {
@@ -151,12 +152,9 @@ void print_box(struct box b) {
 }
 
 void remove_box(struct box b) {
-  move(b.y, 0);
-  clrtoeol();
-  move(b.y - 1, 0);
-  clrtoeol();
-  move(b.y - 2, 0);
-  clrtoeol();
+  mvprintw(b.y, b.x, "          ");
+  mvprintw(b.y - 1, b.x, "          ");
+  mvprintw(b.y - 2, b.x, "          ");
 }
 
 void print_game(void) {
@@ -202,15 +200,15 @@ void new_game() {
 
   boxes[1].y = 21;
   boxes[1].x = 11;
-  boxes[1].health = 2000;
+  boxes[1].health = 200;
  
   boxes[2].y = 21;
   boxes[2].x = 21;
-  boxes[2].health = 5000;
+  boxes[2].health = 500;
 
   boxes[3].y = 21;
   boxes[3].x = 31;
-  boxes[3].health = 111120;
+  boxes[3].health = 1120;
 
   for (int i = 0; i < 20; i++) {
     if (boxes[i].health > 0)
