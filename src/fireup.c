@@ -5,6 +5,10 @@
 #include <stdlib.h>
 #include "fireup.h"
 
+void make_box_string(int length, char s[]);
+int player_hit(void);
+void make_boxes(void);
+
 int main(void) {
   struct timespec ts = {0, 10000000L};
   int c;
@@ -25,7 +29,10 @@ int main(void) {
   init_pair(1, COLOR_WHITE, COLOR_YELLOW); // Projectile
   init_pair(2, COLOR_BLUE, COLOR_BLUE); // Player
   init_pair(3, COLOR_BLACK, COLOR_BLACK); // Background
-  init_pair(4, COLOR_WHITE, COLOR_GREEN); // Block
+
+  init_pair(4, COLOR_WHITE, COLOR_GREEN); // Green Block
+  init_pair(5, COLOR_WHITE, COLOR_YELLOW); // Yellow Block
+  init_pair(6, COLOR_WHITE, COLOR_RED); // Red Block
 
   // Stop getch() from blocking
   nodelay(stdscr, TRUE);
@@ -53,8 +60,8 @@ int main(void) {
     nanosleep(&ts, NULL);
   }
 
-  free(projectiles);
   // Clean up after ourselves
+  free(projectiles);
   endwin();
 
   return 0;
@@ -89,6 +96,25 @@ void handle_input(int c) {
   }
 }
 
+void update(void) {
+  if (box_tick++ == 10) {
+    move_boxes_down();
+    box_tick = 0;
+  }
+  if (proj_tick++ == 15) {
+    fire_projectile();
+    proj_tick = 0;
+  }
+
+  move_projectiles_up();
+
+  if (mouse_pos < player_pos && mouse_pos != -1) {
+    move_player(LEFT);
+  } else if (mouse_pos > player_pos) {
+    move_player(RIGHT);
+  }
+}
+
 void fire_projectile(void) {
   for (int i = 0; i < screen_rows; i++) {
     if (projectiles[i].y < 0) {
@@ -119,15 +145,19 @@ void move_projectiles_up(void) {
 }
 
 int projectile_hit(struct point p) {
+  int box_width = (screen_cols / 4) - 1;
+
   for (int i = 0; i < 20; i++) {
     if (p.y > boxes[i].y && p.y < boxes[i].y + 2 &&
-        p.x > boxes[i].x - 1 && p.x < boxes[i].x + 10) {
-      if (boxes[i].health-- <= 0) {
-        remove_box(boxes[i]);
-        return 0;
-      }
+        p.x > boxes[i].x - 1 && p.x < boxes[i].x + box_width) {
+      boxes[i].health--;
       score++;
-      print_box(boxes[i]);
+
+      if (boxes[i].health < 1) {
+        remove_box(i);
+      } else {
+        print_box(boxes[i]);
+      }
       return 1;
     }
   }
@@ -135,37 +165,45 @@ int projectile_hit(struct point p) {
   return 0;
 }
 
-void update(void) {
-  if (box_tick++ == 10) {
-    move_boxes_down();
-    box_tick = 0;
-  }
-  if (proj_tick++ == 15) {
-    fire_projectile();
-    proj_tick = 0;
-  }
-
-  move_projectiles_up();
-
-  if (mouse_pos < player_pos && mouse_pos != -1) {
-    move_player(LEFT);
-  } else if (mouse_pos > player_pos) {
-    move_player(RIGHT);
-  }
-}
-
 void print_box(struct box b) {
-  attron(COLOR_PAIR(4));
-  mvprintw(b.y, b.x, "          ");
-  mvprintw(b.y - 1, b.x, "    %2d    ", b.health);
-  mvprintw(b.y - 2, b.x, "          ");
-  attroff(COLOR_PAIR(4));
+  int box_width = (screen_cols / 4) - 1;
+  char s[box_width+1];
+
+  make_box_string(box_width, s);
+
+  if (b.health < 4) {
+    attron(COLOR_PAIR(4));
+  } else if (b.health < 6) {
+    attron(COLOR_PAIR(5));
+  } else {
+    attron(COLOR_PAIR(6));
+  }
+  mvprintw(b.y, b.x, "%s", s);
+  mvprintw(b.y - 1, b.x, "%s", s);
+  mvprintw(b.y - 1, b.x + (box_width/2), "%d", b.health);
+  mvprintw(b.y - 2, b.x, "%s", s);
+  if (b.health < 4) {
+    attroff(COLOR_PAIR(4));
+  } else if (b.health < 6) {
+    attroff(COLOR_PAIR(5));
+  } else {
+    attroff(COLOR_PAIR(6));
+  }
 }
 
-void remove_box(struct box b) {
-  mvprintw(b.y, b.x, "          ");
-  mvprintw(b.y - 1, b.x, "          ");
-  mvprintw(b.y - 2, b.x, "          ");
+void remove_box(int bi) {
+  int box_width = (screen_cols / 4) - 1;
+  char s[box_width+1];
+
+  make_box_string(box_width, s);
+
+  mvprintw(boxes[bi].y, boxes[bi].x, "%s", s);
+  mvprintw(boxes[bi].y - 1, boxes[bi].x, "%s", s);
+  mvprintw(boxes[bi].y - 2, boxes[bi].x, "%s", s);
+  if (boxes[bi].health < 1) {
+    boxes[bi].x = -1;
+    boxes[bi].y = -1;
+  }
 }
 
 void print_game(void) {
@@ -181,7 +219,6 @@ void print_gameover(void) {
   mvprintw(screen_rows / 2 + 1, screen_cols / 2 - 15,
     "Press 'n' to start a new game!");
 }
-
 
 void new_game(void) {
   clear();
@@ -205,39 +242,22 @@ void new_game(void) {
     boxes[i].health = -1;
   }
 
-  boxes[0].y = 21;
-  boxes[0].x = 1;
-  boxes[0].health = rand() % (10 - 1) + 1;
+  //boxes[0].y = 0;
+  //boxes[0].x = 0;
+  //boxes[0].health = 5;//rand() % (10 - 1) + 1;
 
-  boxes[1].y = 21;
-  boxes[1].x = 13;
-  boxes[1].health = 5;
+  //boxes[1].y = 0;
+  //boxes[1].x = 1 * (screen_cols / 4);
+  //boxes[1].health = 5;//rand() % (10 - 1) + 1;
  
-  boxes[2].y = 21;
-  boxes[2].x = 25;
-  boxes[2].health = 5;
+  //boxes[2].y = 0;
+  //boxes[2].x = 2 * (screen_cols / 4);
+  //boxes[2].health = 5;//rand() % (10 - 1) + 1;
 
-  boxes[3].y = 21;
-  boxes[3].x = 37;
-  boxes[3].health = 5;
-
-  boxes[4].y = 11;
-  boxes[4].x = 25;
-  boxes[4].health = 5;
-
-  boxes[5].y = 11;
-  boxes[5].x = 37;
-  boxes[5].health = 5;
- 
-  boxes[6].y = 11;
-  boxes[6].x = 49;
-  boxes[6].health = 5;
-
-  boxes[7].y = 11;
-  boxes[7].x = 61;
-  boxes[7].health = 5;
-
-
+  //boxes[3].y = 0;
+  //boxes[3].x = 3 * (screen_cols / 4);
+  //boxes[3].health = 5;//rand() % (10 - 1) + 1;
+  make_boxes();
 
   for (int i = 0; i < 20; i++) {
     if (boxes[i].health > 0)
@@ -249,14 +269,38 @@ void new_game(void) {
   paused = 0;
 }
 
+void make_boxes(void) {
+  for (int i = 0; i < screen_cols / 3; i++) {
+    boxes[i].y = i * 3;
+    boxes[i].x = (i % 4) * (screen_cols / 4);
+    boxes[i].health = rand() % (10 - 1) + 1;
+  }
+}
+
 void move_boxes_down(void) {
   for (int i = 0; i < 20; i++) {
     if (boxes[i].health > 0) {
-      remove_box(boxes[i]);
+      remove_box(i);
       boxes[i].y++;
       print_box(boxes[i]);
+      if (player_hit()) {
+        gameover = 1;
+      }
     }
   }
+}
+
+int player_hit(void) {
+  int box_width = (screen_cols / 4) - 1;
+
+  for (int i = 0; i < 20; i++) {
+    if (boxes[i].y == screen_rows - 2 &&
+        player_pos > boxes[i].x - 1 && player_pos < boxes[i].x + box_width) {
+      return 1;
+    }
+  }
+
+  return 0;
 }
 
 void move_player(int direction) {
@@ -272,4 +316,12 @@ void move_player(int direction) {
   }
   move(screen_rows - 2, 0);
   clrtoeol();
+}
+
+void make_box_string(int length, char s[]) {
+  int i;
+  for (i = 0; i < length; i++) {
+    s[i] = ' ';
+  }
+  s[i] = '\0';
 }

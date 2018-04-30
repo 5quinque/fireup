@@ -37,7 +37,7 @@ struct box {
 };
 
 int projectile_hit(struct point p);
-void remove_box(struct box b);
+void remove_box(int box_index);
 void print_box(struct box b);
 
 
