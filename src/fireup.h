@@ -8,7 +8,6 @@ void new_game(void);
 void handle_input(int c);
 void move_player(int direction);
 void fire_projectile(void);
-void move_boxes_down(void);
 void move_projectiles_up(void);
 
 int player_pos;
@@ -23,23 +22,13 @@ int proj_tick = 0;
 int score;
 int screen_rows, screen_cols;
 struct point *projectiles = NULL;
-struct box *boxes = NULL;
 
 struct point {
   int y;
   int x;
 };
 
-struct box {
-  int y;
-  int x;
-  int health;
-};
-
 int projectile_hit(struct point p);
-void remove_box(int box_index);
-void print_box(struct box b);
-
 
 MEVENT event;
 

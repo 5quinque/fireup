@@ -4,10 +4,9 @@
 // srand(), rand(), malloc()
 #include <stdlib.h>
 #include "fireup.h"
+#include "boxes.h"
 
-void make_box_string(int length, char s[]);
 int player_hit(void);
-void make_boxes(void);
 
 int main(void) {
   struct timespec ts = {0, 10000000L};
@@ -41,6 +40,8 @@ int main(void) {
   mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL);
 
   getmaxyx(stdscr, screen_rows, screen_cols);
+
+  set_box_width(screen_cols);
 
   new_game();
 
@@ -145,11 +146,11 @@ void move_projectiles_up(void) {
 }
 
 int projectile_hit(struct point p) {
-  int box_width = (screen_cols / 4) - 1;
-
   for (int i = 0; i < 20; i++) {
-    if (p.y > boxes[i].y && p.y < boxes[i].y + 2 &&
-        p.x > boxes[i].x - 1 && p.x < boxes[i].x + box_width) {
+    if (boxes[i].health < 0)
+      continue;
+    if (p.y >= boxes[i].y && p.y < boxes[i].y + 2 &&
+        p.x > boxes[i].x - 1 && p.x <= boxes[i].x + box_width) {
       boxes[i].health--;
       score++;
 
@@ -163,47 +164,6 @@ int projectile_hit(struct point p) {
   }
 
   return 0;
-}
-
-void print_box(struct box b) {
-  int box_width = (screen_cols / 4) - 1;
-  char s[box_width+1];
-
-  make_box_string(box_width, s);
-
-  if (b.health < 4) {
-    attron(COLOR_PAIR(4));
-  } else if (b.health < 6) {
-    attron(COLOR_PAIR(5));
-  } else {
-    attron(COLOR_PAIR(6));
-  }
-  mvprintw(b.y, b.x, "%s", s);
-  mvprintw(b.y - 1, b.x, "%s", s);
-  mvprintw(b.y - 1, b.x + (box_width/2), "%d", b.health);
-  mvprintw(b.y - 2, b.x, "%s", s);
-  if (b.health < 4) {
-    attroff(COLOR_PAIR(4));
-  } else if (b.health < 6) {
-    attroff(COLOR_PAIR(5));
-  } else {
-    attroff(COLOR_PAIR(6));
-  }
-}
-
-void remove_box(int bi) {
-  int box_width = (screen_cols / 4) - 1;
-  char s[box_width+1];
-
-  make_box_string(box_width, s);
-
-  mvprintw(boxes[bi].y, boxes[bi].x, "%s", s);
-  mvprintw(boxes[bi].y - 1, boxes[bi].x, "%s", s);
-  mvprintw(boxes[bi].y - 2, boxes[bi].x, "%s", s);
-  if (boxes[bi].health < 1) {
-    boxes[bi].x = -1;
-    boxes[bi].y = -1;
-  }
 }
 
 void print_game(void) {
@@ -242,21 +202,6 @@ void new_game(void) {
     boxes[i].health = -1;
   }
 
-  //boxes[0].y = 0;
-  //boxes[0].x = 0;
-  //boxes[0].health = 5;//rand() % (10 - 1) + 1;
-
-  //boxes[1].y = 0;
-  //boxes[1].x = 1 * (screen_cols / 4);
-  //boxes[1].health = 5;//rand() % (10 - 1) + 1;
- 
-  //boxes[2].y = 0;
-  //boxes[2].x = 2 * (screen_cols / 4);
-  //boxes[2].health = 5;//rand() % (10 - 1) + 1;
-
-  //boxes[3].y = 0;
-  //boxes[3].x = 3 * (screen_cols / 4);
-  //boxes[3].health = 5;//rand() % (10 - 1) + 1;
   make_boxes();
 
   for (int i = 0; i < 20; i++) {
@@ -269,30 +214,7 @@ void new_game(void) {
   paused = 0;
 }
 
-void make_boxes(void) {
-  for (int i = 0; i < screen_cols / 3; i++) {
-    boxes[i].y = i * 3;
-    boxes[i].x = (i % 4) * (screen_cols / 4);
-    boxes[i].health = rand() % (10 - 1) + 1;
-  }
-}
-
-void move_boxes_down(void) {
-  for (int i = 0; i < 20; i++) {
-    if (boxes[i].health > 0) {
-      remove_box(i);
-      boxes[i].y++;
-      print_box(boxes[i]);
-      if (player_hit()) {
-        gameover = 1;
-      }
-    }
-  }
-}
-
 int player_hit(void) {
-  int box_width = (screen_cols / 4) - 1;
-
   for (int i = 0; i < 20; i++) {
     if (boxes[i].y == screen_rows - 2 &&
         player_pos > boxes[i].x - 1 && player_pos < boxes[i].x + box_width) {
@@ -318,10 +240,3 @@ void move_player(int direction) {
   clrtoeol();
 }
 
-void make_box_string(int length, char s[]) {
-  int i;
-  for (i = 0; i < length; i++) {
-    s[i] = ' ';
-  }
-  s[i] = '\0';
-}
